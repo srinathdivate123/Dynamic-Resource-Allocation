@@ -139,13 +139,13 @@ void dynamicResourceAllocation()
 
         if (servers[i].cpuUtilization > 0.70)
         {
-            servers[i].capacity += 15; // Increase capacity of server
+            servers[i].capacity += 10; // Increase capacity of server
             printf("Increased capacity of server %d by 10 units\n\n", i);
         }
         else if (servers[i].cpuUtilization < 0.2)
         {
-            servers[i].capacity -= 15; // Decrease capacity of server
-            printf("Decreased capacity of server %d by 19 units\n\n", i);
+            servers[i].capacity -= 10; // Decrease capacity of server
+            printf("Decreased capacity of server %d by 10 units\n\n", i);
         }
 
         // Ensure capacity remains within constraints
@@ -173,7 +173,7 @@ void updateParticle(Particle *particle)
         double heuristicValue = inertiaTerm + cognitiveTerm + socialTerm; // This is the velocity of the particle
         double newAssignment = particle->assignment[i] + heuristicValue;
 
-        // Ensure that newAssignment respects server capacities and constraints
+        // Ensure that the newAssignment server which we are trying to assign is >0 and less than NUM_SERVERS
         if (newAssignment < 0)
             newAssignment = 0;
         else if (newAssignment >= NUM_SERVERS)
@@ -236,8 +236,8 @@ int main()
             tasksExecuted++;
 
         // Calculate energy consumed for this task (you can adjust this value)
-        double programEnergy = 0.1 * taskMemoryReq; // An appropriate constant
-        totalEnergyConsumed += programEnergy;
+        double taskEnergy = 0.1 * taskMemoryReq; // An appropriate constant
+        totalEnergyConsumed += taskEnergy;
     }
 
     double throughput = tasksExecuted / totalResponseTime;
@@ -249,20 +249,20 @@ int main()
     printf("Best Assignment:\n");
     for (int i = 0; i < NUM_TASKS; ++i)
     {
-        int programServerId = g_bestParticle.assignment[i];
-        printf("Task %d -> Server %d\n", i, programServerId);
+        int taskServerId = g_bestParticle.assignment[i];
+        printf("Task %d -> Server %d\n", i, taskServerId);
 
         // Update server resource usage based on task allocation
-        servers[programServerId].currentLoad += tasks[i].cpuRequirements; // Change programId to i
+        servers[taskServerId].currentLoad += tasks[i].cpuRequirements;
 
         // Output resource utilization
-        printf("CPU Utilization on Server %d: %.2f%%\n", programServerId,
-               (servers[programServerId].cpuUtilization));
-        printf("Memory Utilization on Server %d: %.2f%%\n", programServerId,
-               (servers[programServerId].memoryUtilization));
-        printf("Burst Time on Server %d: %.2f seconds\n\n", programServerId, tasks[i].execution_time); // Change programId to i
+        printf("CPU Utilization on Server %d: %.2f%%\n", taskServerId,
+               (servers[taskServerId].cpuUtilization));
+        printf("Memory Utilization on Server %d: %.2f%%\n", taskServerId,
+               (servers[taskServerId].memoryUtilization));
+        printf("Burst Time on Server %d: %.2f seconds\n\n", taskServerId, tasks[i].execution_time);
     }
-    printf("Global Best Fitness: %f\n", g_bestParticle.fitness);
+    printf("Global Best Fitness: %.8f\n", g_bestParticle.fitness);
 
     // Calculate resource utilization
     double totalResourcesUsed = 0.0;

@@ -144,9 +144,9 @@ int main()
     for (int i = 0; i < NUM_THREADS; i++)
     {
         threads[i].thread_id = i;
-        threads[i].MIPS = 1000.0;      // Preset MIPS
-        threads[i].memory = 4096.0;    // Preset memory
-        threads[i].CPU = 4.0;          // Preset CPU
+        threads[i].MIPS = 1000.0;   // Preset MIPS
+        threads[i].memory = 4096.0; // Preset memory
+        threads[i].CPU = 4.0;       // Preset CPU
         threads[i].load = 0.0;
     }
 

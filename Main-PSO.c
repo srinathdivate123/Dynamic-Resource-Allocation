@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#define NUM_THREADS 4
-#define NUM_PROCESSES 10
+#define NUM_SERVERS 4
+#define NUM_TASKS 10
 #define NUM_PARTICLES 50
 #define MAX_ITERATIONS 2000
 #define INERTIA_WEIGHT 0.7
@@ -25,27 +25,27 @@ typedef struct
     double currentLoad;
     double cpuUtilization;
     double memoryUtilization;
-} Thread;
+} Server;
 
 typedef struct
 {
     int id;
     double cpuRequirements;
     double memoryRequirements;
-    double burst_time;
-} Process;
+    double execution_time;
+} Task;
 
 typedef struct
 {
-    int assignment[NUM_PROCESSES];
+    int assignment[NUM_TASKS];
     double fitness;
-    int p_best[NUM_PROCESSES];
+    int p_best[NUM_TASKS];
 } Particle;
 
-Thread threads[NUM_THREADS];
+Server servers[NUM_SERVERS];
 Particle particles[NUM_PARTICLES];
 Particle g_bestParticle;
-Process processes[NUM_PROCESSES];
+Task tasks[NUM_TASKS];
 
 double evaluateFitness(Particle *particle);
 
@@ -53,32 +53,32 @@ void initialize()
 {
     srand(time(NULL));
 
-    // Threads with random capacities within constraints
-    for (int i = 0; i < NUM_THREADS; ++i)
+    // Servers with random capacities within constraints
+    for (int i = 0; i < NUM_SERVERS; ++i)
     {
-        threads[i].id = i;
-        threads[i].capacity = MIN_CAPACITY + (rand() % (MAX_CAPACITY - MIN_CAPACITY + 1));
-        threads[i].currentLoad = 0.0;
-        threads[i].cpuUtilization = 0.0;
-        threads[i].memoryUtilization = 0.0;
+        servers[i].id = i;
+        servers[i].capacity = MIN_CAPACITY + (rand() % (MAX_CAPACITY - MIN_CAPACITY + 1));
+        servers[i].currentLoad = 0.0;
+        servers[i].cpuUtilization = 0.0;
+        servers[i].memoryUtilization = 0.0;
     }
 
-    // Processes with random CPU & memory requirements and execution times
-    for (int i = 0; i < NUM_PROCESSES; ++i)
+    // Taskes with random CPU & memory requirements and execution times
+    for (int i = 0; i < NUM_TASKS; ++i)
     {
-        processes[i].id = i;
-        processes[i].cpuRequirements = MIN_CPU + (rand() % (MAX_CPU - MIN_CPU + 1));
-        processes[i].memoryRequirements = MIN_MEMORY + (rand() % (MAX_MEMORY - MIN_MEMORY + 1));
-        processes[i].burst_time = MIN_EXECUTION_TIME + (rand() % (MAX_EXECUTION_TIME - MIN_EXECUTION_TIME + 1));
+        tasks[i].id = i;
+        tasks[i].cpuRequirements = MIN_CPU + (rand() % (MAX_CPU - MIN_CPU + 1));
+        tasks[i].memoryRequirements = MIN_MEMORY + (rand() % (MAX_MEMORY - MIN_MEMORY + 1));
+        tasks[i].execution_time = MIN_EXECUTION_TIME + (rand() % (MAX_EXECUTION_TIME - MIN_EXECUTION_TIME + 1));
     }
 
     // Initialize particles with random assignments
     for (int i = 0; i < NUM_PARTICLES; ++i)
     {
-        for (int j = 0; j < NUM_PROCESSES; ++j)
-            particles[i].assignment[j] = rand() % NUM_THREADS;
+        for (int j = 0; j < NUM_TASKS; ++j)
+            particles[i].assignment[j] = rand() % NUM_SERVERS;
         particles[i].fitness = evaluateFitness(&particles[i]);
-        for (int j = 0; j < NUM_PROCESSES; ++j)
+        for (int j = 0; j < NUM_TASKS; ++j)
             particles[i].p_best[j] = particles[i].assignment[j];
     }
 
@@ -88,38 +88,38 @@ void initialize()
 
 double evaluateFitness(Particle *particle)
 {
-    // Calculate the total resource wastage across all threads
+    // Calculate the total resource wastage across all servers
     double totalWastage = 0.0;
 
-    // Calculate the load on each thread based on process assignments
-    for (int i = 0; i < NUM_THREADS; ++i)
+    // Calculate the load on each server based on task assignments
+    for (int i = 0; i < NUM_SERVERS; ++i)
     {
-        threads[i].currentLoad = 0.0;
-        threads[i].cpuUtilization = 0.0;
-        threads[i].memoryUtilization = 0.0;
+        servers[i].currentLoad = 0.0;
+        servers[i].cpuUtilization = 0.0;
+        servers[i].memoryUtilization = 0.0;
     }
 
-    for (int i = 0; i < NUM_PROCESSES; ++i)
+    for (int i = 0; i < NUM_TASKS; ++i)
     {
-        int threadId = particle->assignment[i];
-        double processMemoryReq = processes[i].memoryRequirements;
-        double threadCapacity = threads[threadId].capacity;
+        int serverId = particle->assignment[i];
+        double taskMemoryReq = tasks[i].memoryRequirements;
+        double serverCapacity = servers[serverId].capacity;
 
-        // Update thread load and calculate wastage
-        threads[threadId].currentLoad += processMemoryReq;
-        double wastage = fmax(0, threads[threadId].currentLoad - threadCapacity);
+        // Update server load and calculate wastage
+        servers[serverId].currentLoad += taskMemoryReq;
+        double wastage = fmax(0, servers[serverId].currentLoad - serverCapacity);
         totalWastage += wastage;
 
-        // Update thread CPU and memory utilization
-        threads[threadId].cpuUtilization += processes[i % NUM_PROCESSES].cpuRequirements;
-        threads[threadId].memoryUtilization += processes[i % NUM_PROCESSES].memoryRequirements;
+        // Update server CPU and memory utilization
+        servers[serverId].cpuUtilization += tasks[i % NUM_TASKS].cpuRequirements;
+        servers[serverId].memoryUtilization += tasks[i % NUM_TASKS].memoryRequirements;
     }
 
     // Calculate CPU and Memory Utilization as a percentage
-    for (int i = 0; i < NUM_THREADS; ++i)
+    for (int i = 0; i < NUM_SERVERS; ++i)
     {
-        threads[i].cpuUtilization = (threads[i].cpuUtilization / threads[i].capacity) * 100.0;
-        threads[i].memoryUtilization = (threads[i].memoryUtilization / threads[i].capacity) * 100.0;
+        servers[i].cpuUtilization = (servers[i].cpuUtilization / servers[i].capacity) * 100.0;
+        servers[i].memoryUtilization = (servers[i].memoryUtilization / servers[i].capacity) * 100.0;
     }
 
     // Fitness is the negative of total wastage (minimize wastage)
@@ -130,26 +130,26 @@ double evaluateFitness(Particle *particle)
 
 void dynamicResourceAllocation()
 {
-    // Monitor thread loads and adjust capacities dynamically
-    for (int i = 0; i < NUM_THREADS; ++i)
+    // Monitor server loads and adjust capacities dynamically
+    for (int i = 0; i < NUM_SERVERS; ++i)
     {
-        threads[i].cpuUtilization = threads[i].cpuUtilization / threads[i].capacity;
-        threads[i].memoryUtilization = threads[i].memoryUtilization / threads[i].capacity;
-        printf("Thread %d CPU Utilization is %.2f%%\n", i, threads[i].cpuUtilization*100);
+        servers[i].cpuUtilization = servers[i].cpuUtilization / servers[i].capacity;
+        servers[i].memoryUtilization = servers[i].memoryUtilization / servers[i].capacity;
+        printf("Server %d CPU Utilization is %.2f%%\n", i, servers[i].cpuUtilization*100);
 
-        if (threads[i].cpuUtilization > 0.70)
+        if (servers[i].cpuUtilization > 0.70)
         {
-            threads[i].capacity += 15; // Increase capacity of thread
-            printf("Increased CPU Utlization of thread %d by 15 units\n\n", i);
+            servers[i].capacity += 15; // Increase capacity of server
+            printf("Increased capacity of server %d by 10 units\n\n", i);
         }
-        else if (threads[i].cpuUtilization < 0.2)
+        else if (servers[i].cpuUtilization < 0.2)
         {
-            threads[i].capacity -= 15; // Decrease capacity of thread
-            printf("Decreased CPU Utlization of thread %d by 15 units\n\n", i);
+            servers[i].capacity -= 15; // Decrease capacity of server
+            printf("Decreased capacity of server %d by 19 units\n\n", i);
         }
 
         // Ensure capacity remains within constraints
-        threads[i].capacity = fmax(MIN_CAPACITY, fmin(MAX_CAPACITY, threads[i].capacity));
+        servers[i].capacity = fmax(MIN_CAPACITY, fmin(MAX_CAPACITY, servers[i].capacity));
     }
 }
 
@@ -161,23 +161,23 @@ void updateParticle(Particle *particle)
     double cognitiveComponent = (double)rand() / RAND_MAX;
     double socialComponent = (double)rand() / RAND_MAX; 
 
-    for (int i = 0; i < NUM_PROCESSES; ++i)
+    for (int i = 0; i < NUM_TASKS; ++i)
     {
         double inertiaTerm = INERTIA_WEIGHT * particle->p_best[i];
         double cognitiveTerm = COGNITIVE_WEIGHT * cognitiveComponent * (particle->p_best[i] - particle->assignment[i]);
         double socialTerm = SOCIAL_WEIGHT * socialComponent * (g_bestParticle.assignment[i] - particle->assignment[i]);
 
-        // These three terms together contribute to the calculation of velocityUpdate, which represents how the particle should adjust its process assignments (position) in the solution space
+        // These three terms together contribute to the calculation of velocityUpdate, which represents how the particle should adjust its task assignments (position) in the solution space
         // The balance between these terms guides the particle's movement as it seeks to explore and exploit the solution space to find better assignments that optimize the given fitness function
 
         double heuristicValue = inertiaTerm + cognitiveTerm + socialTerm; // This is the velocity of the particle
         double newAssignment = particle->assignment[i] + heuristicValue;
 
-        // Ensure that newAssignment respects thread capacities and constraints
+        // Ensure that newAssignment respects server capacities and constraints
         if (newAssignment < 0)
             newAssignment = 0;
-        else if (newAssignment >= NUM_THREADS)
-            newAssignment = NUM_THREADS - 1;
+        else if (newAssignment >= NUM_SERVERS)
+            newAssignment = NUM_SERVERS - 1;
 
         particle->assignment[i] = (int)newAssignment;
     }
@@ -187,7 +187,7 @@ void updateParticle(Particle *particle)
     if (currentFitness > particle->fitness)
     {
         particle->fitness = currentFitness;
-        for (int i = 0; i < NUM_PROCESSES; ++i)
+        for (int i = 0; i < NUM_TASKS; ++i)
             particle->p_best[i] = particle->assignment[i];
     }
 
@@ -195,7 +195,7 @@ void updateParticle(Particle *particle)
     if (currentFitness > g_bestParticle.fitness)
     {
         g_bestParticle.fitness = currentFitness;
-        for (int i = 0; i < NUM_PROCESSES; ++i)
+        for (int i = 0; i < NUM_TASKS; ++i)
             g_bestParticle.assignment[i] = particle->assignment[i];
     }
 }
@@ -225,66 +225,66 @@ int main()
     double totalResponseTime = ((double)(end - start)) / CLOCKS_PER_SEC;
 
     // Calculate throughput
-    int programsProcessed = 0;
-    for (int i = 0; i < NUM_PROCESSES; ++i)
+    int tasksExecuted = 0;
+    for (int i = 0; i < NUM_TASKS; ++i)
     {
-        int threadId = g_bestParticle.assignment[i];
-        double processMemoryReq = processes[i].memoryRequirements;
-        double threadCapacity = threads[threadId].capacity;
+        int serverId = g_bestParticle.assignment[i];
+        double taskMemoryReq = tasks[i].memoryRequirements;
+        double serverCapacity = servers[serverId].capacity;
 
-        if (threadCapacity - threads[threadId].currentLoad >= processMemoryReq)
-            programsProcessed++;
+        if (serverCapacity - servers[serverId].currentLoad >= taskMemoryReq)
+            tasksExecuted++;
 
-        // Calculate energy consumed for this process (you can adjust this value)
-        double programEnergy = 0.1 * processMemoryReq; // An appropriate constant
+        // Calculate energy consumed for this task (you can adjust this value)
+        double programEnergy = 0.1 * taskMemoryReq; // An appropriate constant
         totalEnergyConsumed += programEnergy;
     }
 
-    double throughput = programsProcessed / totalResponseTime;
+    double throughput = tasksExecuted / totalResponseTime;
 
     // Calculate energy efficiency
     double energyEfficiency = throughput / totalEnergyConsumed;
 
     // Output the best assignment found
     printf("Best Assignment:\n");
-    for (int i = 0; i < NUM_PROCESSES; ++i)
+    for (int i = 0; i < NUM_TASKS; ++i)
     {
-        int programThreadId = g_bestParticle.assignment[i];
-        printf("Process %d -> Thread %d\n", i, programThreadId);
+        int programServerId = g_bestParticle.assignment[i];
+        printf("Task %d -> Server %d\n", i, programServerId);
 
-        // Update thread resource usage based on process allocation
-        threads[programThreadId].currentLoad += processes[i].cpuRequirements; // Change programId to i
+        // Update server resource usage based on task allocation
+        servers[programServerId].currentLoad += tasks[i].cpuRequirements; // Change programId to i
 
         // Output resource utilization
-        printf("CPU Utilization on Thread %d: %.2f%%\n", programThreadId,
-               (threads[programThreadId].cpuUtilization));
-        printf("Memory Utilization on Thread %d: %.2f%%\n", programThreadId,
-               (threads[programThreadId].memoryUtilization));
-        printf("Burst Time on Thread %d: %.2f seconds\n\n", programThreadId, processes[i].burst_time); // Change programId to i
+        printf("CPU Utilization on Server %d: %.2f%%\n", programServerId,
+               (servers[programServerId].cpuUtilization));
+        printf("Memory Utilization on Server %d: %.2f%%\n", programServerId,
+               (servers[programServerId].memoryUtilization));
+        printf("Burst Time on Server %d: %.2f seconds\n\n", programServerId, tasks[i].execution_time); // Change programId to i
     }
     printf("Global Best Fitness: %f\n", g_bestParticle.fitness);
 
     // Calculate resource utilization
     double totalResourcesUsed = 0.0;
-    double totalThreadCapacity = 0.0;
+    double totalServerCapacity = 0.0;
 
-    for (int i = 0; i < NUM_PROCESSES; ++i)
+    for (int i = 0; i < NUM_TASKS; ++i)
     {
-        int threadId = g_bestParticle.assignment[i];
-        double processMemoryReq = processes[i].memoryRequirements;
-        totalResourcesUsed += processMemoryReq;
+        int serverId = g_bestParticle.assignment[i];
+        double taskMemoryReq = tasks[i].memoryRequirements;
+        totalResourcesUsed += taskMemoryReq;
     }
 
-    for (int i = 0; i < NUM_THREADS; ++i)
-        totalThreadCapacity += threads[i].capacity;
+    for (int i = 0; i < NUM_SERVERS; ++i)
+        totalServerCapacity += servers[i].capacity;
 
-    double resourceUtilizationPercentage = (totalResourcesUsed / totalThreadCapacity) * 100.0;
+    double resourceUtilizationPercentage = (totalResourcesUsed / totalServerCapacity) * 100.0;
 
     // Output additional metrics
     printf("Resource Utilization: %.2f%%\n", resourceUtilizationPercentage);
     printf("Total Response Time: %.2f seconds\n", totalResponseTime);
     printf("Total Energy Consumed: %.2f units\n", totalEnergyConsumed);
-    printf("Energy Efficiency: %.2f processes/Joule\n", energyEfficiency);
-    printf("Throughput: %.2f processes/second\n\n", throughput);
+    printf("Energy Efficiency: %.2f tasks/Joule\n", energyEfficiency);
+    printf("Throughput: %.2f tasks/second\n\n", throughput);
     return 0;
 }
